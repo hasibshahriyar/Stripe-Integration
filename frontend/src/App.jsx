@@ -512,12 +512,17 @@ function DonationPage() {
                       placeholder=" " />
                     <label htmlFor="donorEmail">Email Address</label>
                   </div>
-                  <div className="float-field float-field--phone">
-                    <span className="phone-prefix">+61 <span className="phone-drop">▾</span></span>
-                    <input id="donorPhone" type="tel" value={form.donorPhone}
-                      onChange={(e) => setForm((p) => ({ ...p, donorPhone: e.target.value }))}
-                      placeholder=" " />
-                    <label htmlFor="donorPhone">Phone No. (Optional)</label>
+                  <div className="phone-field-wrap">
+                    <div className="phone-prefix-box">
+                      <span>🇦🇺</span>
+                      <span>+61</span>
+                    </div>
+                    <div className="float-field float-field--phone-input">
+                      <input id="donorPhone" type="tel" value={form.donorPhone}
+                        onChange={(e) => setForm((p) => ({ ...p, donorPhone: e.target.value }))}
+                        placeholder=" " />
+                      <label htmlFor="donorPhone">Phone No. (Optional)</label>
+                    </div>
                   </div>
                   <div className="check-field">
                     <label>
