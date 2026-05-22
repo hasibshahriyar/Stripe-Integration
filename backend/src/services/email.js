@@ -1,36 +1,45 @@
+import https from "https";
+
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
 }
 
-import nodemailer from "nodemailer";
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: "in-v3.mailjet.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.MAILJET_API_KEY,
-      pass: process.env.MAILJET_SECRET_KEY
-    }
+function httpsPost(hostname, path, headers, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = https.request(
+      { hostname, path, method: "POST", headers: { ...headers, "Content-Length": Buffer.byteLength(data) } },
+      (res) => {
+        let raw = "";
+        res.on("data", (c) => (raw += c));
+        res.on("end", () => {
+          if (res.statusCode >= 400) reject(new Error(`HTTP ${res.statusCode}: ${raw}`));
+          else resolve(raw);
+        });
+      }
+    );
+    req.setTimeout(15000, () => req.destroy(new Error("Request timeout")));
+    req.on("error", reject);
+    req.write(data);
+    req.end();
   });
 }
 
 async function sendEmail({ to, toName, subject, html, text }) {
   const fromEmail = process.env.FROM_EMAIL || "shahriyarhasib6@gmail.com";
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from: `"Princes Court Together" <${fromEmail}>`,
-    to,
-    subject,
-    html,
-    text
-  });
+  const auth = Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_SECRET_KEY}`).toString("base64");
+  await httpsPost(
+    "api.mailjet.com",
+    "/v3.1/send",
+    { "Authorization": `Basic ${auth}`, "Content-Type": "application/json" },
+    { Messages: [{ From: { Email: fromEmail, Name: "Princes Court Together" }, To: [{ Email: to, Name: toName }], Subject: subject, HTMLPart: html, TextPart: text }] }
+  );
 }
 
 export async function sendDonationEmails({ donorName, donorEmail, amount, recurring, paymentIntentId, dedicationName }) {
   if (!process.env.MAILJET_API_KEY || !process.env.MAILJET_SECRET_KEY) {
-    console.warn("[email] MAILJET_API_KEY or MAILJET_SECRET_KEY not set — skipping.");
+    console.warn("[email] MAILJET keys not set — skipping.");
     return;
   }
 
