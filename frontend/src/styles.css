@@ -425,7 +425,8 @@ body {
 /* ── Phone field with country code prefix ── */
 .phone-field-wrap {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  height: 56px;
   border: 0.667px solid var(--border-pill);
   border-radius: var(--radius);
   background: var(--card-active-bg);
@@ -439,15 +440,15 @@ body {
   border: none;
   border-right: 1px solid var(--border-pill);
   background: var(--card-active-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2358686F'/%3E%3C/svg%3E") no-repeat right 10px center;
-  padding: 0 30px 0 12px;
+  padding: 0 30px 0 16px;
   font-size: 15px;
   font-weight: 500;
   color: var(--text-dark);
   cursor: pointer;
   outline: none;
   flex-shrink: 0;
-  height: 100%;
-  min-width: 90px;
+  align-self: stretch;
+  min-width: 80px;
 }
 .phone-number-input {
   flex: 1;
@@ -458,7 +459,8 @@ body {
   font-size: 16px;
   font-weight: 300;
   color: var(--text-dark);
-  padding: 0 14px;
+  padding: 0 16px;
+  height: 100%;
 }
 .phone-number-input::placeholder { color: var(--text-muted); }
 
