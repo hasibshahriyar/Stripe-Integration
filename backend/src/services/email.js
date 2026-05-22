@@ -1,16 +1,30 @@
 import nodemailer from "nodemailer";
+import dns from "dns";
+import { promisify } from "util";
+
+const resolve4 = promisify(dns.resolve4);
+
+async function resolveIPv4(hostname) {
+  try {
+    const addresses = await resolve4(hostname);
+    return addresses[0];
+  } catch {
+    return hostname;
+  }
+}
 
 function isConfigured() {
   return !!process.env.SMTP_USER &&
     process.env.SMTP_USER !== "your_gmail@gmail.com";
 }
 
-function createTransport() {
+async function createTransport() {
+  const hostname = process.env.SMTP_HOST || "smtp.gmail.com";
+  const host = await resolveIPv4(hostname);
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    host,
     port: parseInt(process.env.SMTP_PORT || "465"),
     secure: process.env.SMTP_SECURE !== "false",
-    family: 4,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
@@ -35,7 +49,7 @@ export async function sendDonationEmails({ donorName, donorEmail, amount, recurr
     return;
   }
 
-  const transporter = createTransport();
+  const transporter = await createTransport();
   const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
   const adminEmail = process.env.ADMIN_EMAIL;
   const formattedAmount = formatCurrency(amount);
