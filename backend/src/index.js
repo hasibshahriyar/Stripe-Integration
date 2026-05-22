@@ -9,7 +9,11 @@ import stripeRouter from "./routes/stripe.js";
 const app = express();
 const port = Number(process.env.PORT || 4000);
 
-app.use(cors());
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL, "http://localhost:5173"]
+  : true;
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {

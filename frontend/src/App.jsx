@@ -6,6 +6,8 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
   : null;
 
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 const PRESET_AMOUNTS = [10, 50, 100];
 const DEFAULT_RECURRING = [
   { value: "one_time", label: "One time" },
@@ -90,14 +92,14 @@ function DonationPage() {
   const cardComplete = cardNumComplete && cardExpComplete && cardCvcComplete;
 
   useEffect(() => {
-    fetch("/api/campaigns/princes-court-together")
+    fetch(`${API_BASE}/api/campaigns/princes-court-together`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setCampaign(d.data))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    fetch("/api/admin/settings")
+    fetch(`${API_BASE}/api/admin/settings`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => {
         if (d?.presetAmounts?.length) setPresetAmounts(d.presetAmounts);
@@ -147,7 +149,7 @@ function DonationPage() {
       const donorName = `${form.donorFirstName} ${form.donorLastName}`.trim();
 
       // 1. Create PaymentIntent on the backend
-      const piRes = await fetch("/api/stripe/payment-intent", {
+      const piRes = await fetch(`${API_BASE}/api/stripe/payment-intent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -174,7 +176,7 @@ function DonationPage() {
       if (stripeError) throw new Error(stripeError.message);
 
       // 3. Record donation in DB (best-effort — payment already confirmed above)
-      fetch("/api/donations", {
+      fetch(`${API_BASE}/api/donations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -190,7 +192,7 @@ function DonationPage() {
       }).catch(() => {});
 
       // 4. Send email notifications (best-effort)
-      fetch("/api/stripe/notify", {
+      fetch(`${API_BASE}/api/stripe/notify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -637,7 +639,7 @@ function AdminPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/settings")
+    fetch(`${API_BASE}/api/admin/settings`)
       .then((r) => r.json())
       .then((d) => { setAmounts(d.presetAmounts || [10, 50, 100]); setLoading(false); })
       .catch(() => { setAmounts([10, 50, 100]); setLoading(false); });
@@ -653,7 +655,7 @@ function AdminPage() {
     if (parsed.length === 0) { setError("At least one valid amount (≥ $1) is required."); return; }
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/settings", {
+      const res = await fetch(`${API_BASE}/api/admin/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ presetAmounts: parsed })
