@@ -1,42 +1,37 @@
-import nodemailer from "nodemailer";
-
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
 }
 
-function createTransporter() {
-  // Mailjet SMTP on port 2525 — Render blocks 25/465/587 but NOT 2525
-  return nodemailer.createTransport({
-    host: "in-v3.mailjet.com",
-    port: 2525,
-    secure: false,
-    auth: {
-      user: process.env.MAILJET_API_KEY,
-      pass: process.env.MAILJET_SECRET_KEY,
-    },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-  });
-}
-
 async function sendEmail({ to, toName, subject, html, text }) {
   const fromEmail = process.env.FROM_EMAIL || "shahriyarhasib6@gmail.com";
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from: `"Princes Court Together" <${fromEmail}>`,
-    to: `"${toName}" <${to}>`,
-    subject,
-    html,
-    text,
+  const res = await fetch("https://api.postmarkapp.com/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "X-Postmark-Server-Token": process.env.POSTMARK_API_TOKEN,
+    },
+    body: JSON.stringify({
+      From: `Princes Court Together <${fromEmail}>`,
+      To: to,
+      Subject: subject,
+      HtmlBody: html,
+      TextBody: text,
+      MessageStream: "outbound",
+    }),
   });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Postmark ${res.status}: ${body}`);
+  }
 }
 
 export async function sendDonationEmails({ donorName, donorEmail, amount, recurring, paymentIntentId, dedicationName }) {
-  if (!process.env.MAILJET_API_KEY || !process.env.MAILJET_SECRET_KEY) {
-    console.warn("[email] MAILJET keys not set — skipping.");
+  if (!process.env.POSTMARK_API_TOKEN) {
+    console.warn("[email] POSTMARK_API_TOKEN not set — skipping.");
     return;
   }
+
 
   const adminEmail = process.env.ADMIN_EMAIL;
   const formattedAmount = formatCurrency(amount);
