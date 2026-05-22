@@ -449,17 +449,18 @@ body {
   height: 100%;
   min-width: 90px;
 }
-.float-field--phone-input {
+.phone-number-input {
   flex: 1;
-  margin-bottom: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--text-dark);
+  padding: 0 14px;
 }
-.float-field--phone-input input {
-  border: none !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding-left: 14px !important;
-}
-.float-field--phone-input label { left: 14px; }
+.phone-number-input::placeholder { color: var(--text-muted); }
 
 /* ── Payment method tabs ── */
 .pay-method-tabs {

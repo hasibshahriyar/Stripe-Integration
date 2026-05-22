@@ -523,12 +523,14 @@ function DonationPage() {
                       <option value="+61">🇦🇺 +61</option>
                       <option value="+64">🇳🇿 +64</option>
                     </select>
-                    <div className="float-field float-field--phone-input">
-                      <input id="donorPhone" type="tel" value={form.donorPhone}
-                        onChange={(e) => setForm((p) => ({ ...p, donorPhone: e.target.value }))}
-                        placeholder=" " />
-                      <label htmlFor="donorPhone">Phone No. (Optional)</label>
-                    </div>
+                    <input
+                      id="donorPhone"
+                      className="phone-number-input"
+                      type="tel"
+                      value={form.donorPhone}
+                      onChange={(e) => setForm((p) => ({ ...p, donorPhone: e.target.value }))}
+                      placeholder="Phone No. (Optional)"
+                    />
                   </div>
                   <div className="check-field">
                     <label>

@@ -3,9 +3,7 @@ function formatCurrency(amount) {
 }
 
 async function sendEmail({ to, toName, subject, html, text }) {
-  const from = process.env.FROM_EMAIL
-    ? `Princes Court Together <${process.env.FROM_EMAIL}>`
-    : "Princes Court Together <onboarding@resend.dev>";
+  const from = "Princes Court Together <onboarding@resend.dev>";
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
