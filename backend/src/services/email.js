@@ -2,31 +2,30 @@ function formatCurrency(amount) {
   return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
 }
 
+import nodemailer from "nodemailer";
+
+function createTransporter() {
+  return nodemailer.createTransport({
+    host: "in-v3.mailjet.com",
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.MAILJET_API_KEY,
+      pass: process.env.MAILJET_SECRET_KEY
+    }
+  });
+}
+
 async function sendEmail({ to, toName, subject, html, text }) {
   const fromEmail = process.env.FROM_EMAIL || "shahriyarhasib6@gmail.com";
-  const auth = Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_SECRET_KEY}`).toString("base64");
-
-  const res = await fetch("https://api.mailjet.com/v3.1/send", {
-    method: "POST",
-    headers: {
-      "Authorization": `Basic ${auth}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      Messages: [{
-        From: { Email: fromEmail, Name: "Princes Court Together" },
-        To: [{ Email: to, Name: toName }],
-        Subject: subject,
-        HTMLPart: html,
-        TextPart: text
-      }]
-    })
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from: `"Princes Court Together" <${fromEmail}>`,
+    to,
+    subject,
+    html,
+    text
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Mailjet error ${res.status}: ${err}`);
-  }
 }
 
 export async function sendDonationEmails({ donorName, donorEmail, amount, recurring, paymentIntentId, dedicationName }) {
