@@ -41,6 +41,7 @@ const initialForm = {
   donorLastName: "",
   donorEmail: "",
   donorPhone: "",
+  phoneCountry: "+61",
   getUpdates: false
 };
 
@@ -513,10 +514,15 @@ function DonationPage() {
                     <label htmlFor="donorEmail">Email Address</label>
                   </div>
                   <div className="phone-field-wrap">
-                    <div className="phone-prefix-box">
-                      <span>🇦🇺</span>
-                      <span>+61</span>
-                    </div>
+                    <select
+                      className="phone-country-select"
+                      value={form.phoneCountry || "+61"}
+                      onChange={(e) => setForm((p) => ({ ...p, phoneCountry: e.target.value }))}
+                      aria-label="Country code"
+                    >
+                      <option value="+61">🇦🇺 +61</option>
+                      <option value="+64">🇳🇿 +64</option>
+                    </select>
                     <div className="float-field float-field--phone-input">
                       <input id="donorPhone" type="tel" value={form.donorPhone}
                         onChange={(e) => setForm((p) => ({ ...p, donorPhone: e.target.value }))}
