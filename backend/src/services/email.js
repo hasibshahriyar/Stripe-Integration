@@ -3,27 +3,31 @@ function formatCurrency(amount) {
 }
 
 async function sendEmail({ to, toName, subject, html, text }) {
-  const from = "Princes Court Together <onboarding@resend.dev>";
+  const fromEmail = process.env.FROM_EMAIL || "shahriyarhasib6@gmail.com";
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ from, to: [to], subject, html, text })
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to, name: toName }] }],
+      from: { email: fromEmail, name: "Princes Court Together" },
+      subject,
+      content: [{ type: "text/html", value: html }, { type: "text/plain", value: text }]
+    })
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Resend error ${res.status}: ${err}`);
+    throw new Error(`SendGrid error ${res.status}: ${err}`);
   }
-  return res.json();
 }
 
 export async function sendDonationEmails({ donorName, donorEmail, amount, recurring, paymentIntentId, dedicationName }) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn("[email] RESEND_API_KEY not set — skipping email notifications.");
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn("[email] SENDGRID_API_KEY not set — skipping email notifications.");
     return;
   }
 
