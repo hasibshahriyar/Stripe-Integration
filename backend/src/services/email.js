@@ -1,59 +1,38 @@
-import nodemailer from "nodemailer";
-import dns from "dns";
-import { promisify } from "util";
-
-const resolve4 = promisify(dns.resolve4);
-
-async function resolveIPv4(hostname) {
-  try {
-    const addresses = await resolve4(hostname);
-    return addresses[0];
-  } catch {
-    return hostname;
-  }
-}
-
-function isConfigured() {
-  return !!process.env.SMTP_USER &&
-    process.env.SMTP_USER !== "your_gmail@gmail.com";
-}
-
-async function createTransport() {
-  const hostname = process.env.SMTP_HOST || "smtp.gmail.com";
-  const host = await resolveIPv4(hostname);
-  return nodemailer.createTransport({
-    host,
-    port: parseInt(process.env.SMTP_PORT || "465"),
-    secure: process.env.SMTP_SECURE !== "false",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
-}
-
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
 }
 
-/**
- * Send donation confirmation email to the donor and notification to admin.
- * Both are best-effort — errors are logged but not thrown.
- */
+async function sendEmail({ to, toName, subject, html, text }) {
+  const from = process.env.FROM_EMAIL
+    ? `Princes Court Together <${process.env.FROM_EMAIL}>`
+    : "Princes Court Together <onboarding@resend.dev>";
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ from, to: [to], subject, html, text })
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Resend error ${res.status}: ${err}`);
+  }
+  return res.json();
+}
+
 export async function sendDonationEmails({ donorName, donorEmail, amount, recurring, paymentIntentId, dedicationName }) {
-  if (!isConfigured()) {
-    console.warn("[email] SMTP not configured — skipping email notifications.");
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("[email] RESEND_API_KEY not set — skipping email notifications.");
     return;
   }
 
-  const transporter = await createTransport();
-  const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
   const adminEmail = process.env.ADMIN_EMAIL;
   const formattedAmount = formatCurrency(amount);
-  const recurringLabel = recurring === "monthly" ? "Monthly" : recurring === "fortnightly" ? "Fortnightly" : "One time";
+  const recurringMap = { one_time: "One time", weekly: "Weekly", monthly: "Monthly", annually: "Annually" };
+  const recurringLabel = recurringMap[recurring] || "One time";
 
   const donorHtml = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#2E373B">
@@ -83,8 +62,7 @@ export async function sendDonationEmails({ donorName, donorEmail, amount, recurr
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
         <p style="font-size:12px;color:#999">Princes Court, Together — Fundraising services provided by Shout for Good Pty Ltd ABN: 45 163 218 639</p>
       </div>
-    </div>
-  `;
+    </div>`;
 
   const adminHtml = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#2E373B">
@@ -101,31 +79,30 @@ export async function sendDonationEmails({ donorName, donorEmail, amount, recurr
           <tr><td style="padding:8px 0;color:#58686F">Payment ID</td><td style="padding:8px 0;font-size:13px">${paymentIntentId}</td></tr>
         </table>
       </div>
-    </div>
-  `;
+    </div>`;
 
   const sends = [];
 
   if (donorEmail) {
     sends.push(
-      transporter.sendMail({
-        from: `"Princes Court, Together" <${fromEmail}>`,
+      sendEmail({
         to: donorEmail,
-        subject: `Thank you for your donation — Princes Court, Together`,
+        toName: donorName,
+        subject: "Thank you for your donation — Princes Court, Together",
         html: donorHtml,
-        text: `Thank you ${donorName}! Your ${recurringLabel.toLowerCase()} donation of ${formattedAmount} AUD to Princes Court, Together has been received. Payment reference: ${paymentIntentId}`
+        text: `Thank you ${donorName}! Your ${recurringLabel} donation of ${formattedAmount} AUD has been received. Payment reference: ${paymentIntentId}`
       }).catch(err => console.error("[email] Failed to send donor receipt:", err.message))
     );
   }
 
   if (adminEmail) {
     sends.push(
-      transporter.sendMail({
-        from: `"Princes Court, Together" <${fromEmail}>`,
+      sendEmail({
         to: adminEmail,
+        toName: "Admin",
         subject: `New donation: ${formattedAmount} from ${donorName}`,
         html: adminHtml,
-        text: `New donation received.\nDonor: ${donorName}\nEmail: ${donorEmail || "—"}\nAmount: ${formattedAmount} AUD\nFrequency: ${recurringLabel}\nPayment ID: ${paymentIntentId}`
+        text: `New donation.\nDonor: ${donorName}\nEmail: ${donorEmail || "—"}\nAmount: ${formattedAmount} AUD\nFrequency: ${recurringLabel}\nPayment ID: ${paymentIntentId}`
       }).catch(err => console.error("[email] Failed to send admin notification:", err.message))
     );
   }
@@ -133,4 +110,3 @@ export async function sendDonationEmails({ donorName, donorEmail, amount, recurr
   await Promise.all(sends);
   console.log(`[email] Notifications sent for payment ${paymentIntentId}`);
 }
-
