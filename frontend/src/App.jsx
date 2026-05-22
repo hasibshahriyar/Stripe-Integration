@@ -7,10 +7,11 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   : null;
 
 const PRESET_AMOUNTS = [10, 50, 100];
-const RECURRING_OPTIONS = [
+const DEFAULT_RECURRING = [
   { value: "one_time", label: "One time" },
-  { value: "fortnightly", label: "Fortnightly" },
-  { value: "monthly", label: "Monthly" }
+  { value: "weekly",   label: "Weekly" },
+  { value: "monthly",  label: "Monthly" },
+  { value: "annually", label: "Annually" }
 ];
 
 const LOGO_URL =
@@ -63,6 +64,7 @@ const CARD_STYLE = {
 };
 
 export default function App() {
+  if (window.location.pathname === "/admin") return <AdminPage />;
   return (
     <Elements stripe={stripePromise}>
       <DonationPage />
@@ -75,6 +77,8 @@ function DonationPage() {
   const elements = useElements();
 
   const [campaign, setCampaign] = useState(null);
+  const [presetAmounts, setPresetAmounts] = useState(PRESET_AMOUNTS);
+  const [recurringOptions, setRecurringOptions] = useState(DEFAULT_RECURRING);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +93,16 @@ function DonationPage() {
     fetch("/api/campaigns/princes-court-together")
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setCampaign(d.data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.presetAmounts?.length) setPresetAmounts(d.presetAmounts);
+        if (d?.recurringOptions?.length) setRecurringOptions(d.recurringOptions);
+      })
       .catch(() => {});
   }, []);
 
@@ -274,7 +288,7 @@ function DonationPage() {
               </div>
               {step > 1 && (
                 <p className="section-summary">
-                  {RECURRING_OPTIONS.find((o) => o.value === form.recurring)?.label} donation &middot; {formatCurrency(selectedAmount)}
+                  {recurringOptions.find((o) => o.value === form.recurring)?.label || form.recurring} donation &middot; {formatCurrency(selectedAmount)}
                 </p>
               )}
               {step === 1 && (
@@ -283,7 +297,7 @@ function DonationPage() {
 
                   {/* Amount pills */}
                   <div className="radio-group">
-                    {PRESET_AMOUNTS.map((a) => (
+                    {presetAmounts.map((a) => (
                       <div
                         key={a}
                         className={`radio-button${form.customAmount === "" && form.amount === a ? " selected" : ""}`}
@@ -323,7 +337,7 @@ function DonationPage() {
                   {/* Recurring */}
                   <p className="recurring-label">Would you like to make this recurring?</p>
                   <div className="radio-group radio-group--recurring">
-                    {RECURRING_OPTIONS.map((opt) => (
+                    {recurringOptions.map((opt) => (
                       <div
                         key={opt.value}
                         className={`radio-button${form.recurring === opt.value ? " selected" : ""}`}
@@ -555,7 +569,7 @@ function DonationPage() {
                       <span>Description</span><span>Amount</span>
                     </div>
                     <div className="order-summary__row">
-                      <span>{RECURRING_OPTIONS.find((o) => o.value === form.recurring)?.label} donation</span>
+                      <span>{recurringOptions.find((o) => o.value === form.recurring)?.label || form.recurring} donation</span>
                       <span>{formatCurrency(selectedAmount)}</span>
                     </div>
                     <div className="order-summary__row">
@@ -604,8 +618,111 @@ function DonationPage() {
             or liabilities of ANZ. ANZ does not stand behind or guarantee Shout or its obligations.
           </p>
           <p>Copyright © 2026</p>
+          <p><a href="/admin" className="admin-page-link">⚙ Admin</a></p>
         </footer>
       </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Admin Page
+───────────────────────────────────────────── */
+function AdminPage() {
+  const [amounts, setAmounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then((d) => { setAmounts(d.presetAmounts || [10, 50, 100]); setLoading(false); })
+      .catch(() => { setAmounts([10, 50, 100]); setLoading(false); });
+  }, []);
+
+  function updateAmount(i, v) { setAmounts((p) => p.map((a, j) => j === i ? v : a)); setSaved(false); }
+  function addAmount() { setAmounts((p) => [...p, ""]); setSaved(false); }
+  function removeAmount(i) { if (amounts.length > 1) { setAmounts((p) => p.filter((_, j) => j !== i)); setSaved(false); } }
+
+  async function save() {
+    setError("");
+    const parsed = amounts.map(Number).filter((a) => Number.isFinite(a) && a >= 1);
+    if (parsed.length === 0) { setError("At least one valid amount (≥ $1) is required."); return; }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ presetAmounts: parsed })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+      setAmounts(data.presetAmounts);
+      setSaved(true);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <div className="admin-loading">Loading…</div>;
+
+  return (
+    <div className="admin-page">
+      <div className="admin-card">
+        <div className="admin-header">
+          <h1 className="admin-title">Admin Panel</h1>
+          <p className="admin-subtitle">Princes Court Together — Donation Settings</p>
+        </div>
+
+        {/* Preset Amounts */}
+        <section className="admin-section">
+          <h2 className="admin-section-title">Preset Donation Amounts</h2>
+          <p className="admin-section-desc">These appear as quick-select buttons on the donation form.</p>
+          <div className="admin-amounts">
+            {amounts.map((a, i) => (
+              <div key={i} className="admin-amount-row">
+                <span className="admin-amount-prefix">$</span>
+                <input type="number" min="1" step="any" className="admin-amount-input"
+                  value={a} onChange={(e) => updateAmount(i, e.target.value)} />
+                <button type="button" className="admin-btn-remove" title="Remove"
+                  onClick={() => removeAmount(i)} disabled={amounts.length <= 1}>✕</button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="admin-btn-add" onClick={addAmount}>+ Add Amount</button>
+        </section>
+
+        {/* Recurring info — read-only */}
+        <section className="admin-section">
+          <h2 className="admin-section-title">Recurring Frequency</h2>
+          <p className="admin-section-desc">Donors choose from these options in Step 1 of the form:</p>
+          <ul className="admin-recurring-list">
+            {DEFAULT_RECURRING.map((o) => (
+              <li key={o.value}>
+                <span className="admin-recurring-badge">{o.label}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="admin-info-note">✓ Recurring is active — the selected frequency is recorded in the donation and sent to Stripe as metadata.</p>
+        </section>
+
+        {error && <p className="admin-error">{error}</p>}
+
+        <div className="admin-actions">
+          <button type="button"
+            className={`admin-btn-save${saving ? "" : " admin-btn-save--ready"}`}
+            onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+          {saved && <span className="admin-saved">✓ Saved!</span>}
+        </div>
+
+        <a href="/" className="admin-back-link">← Back to donation page</a>
       </div>
     </div>
   );

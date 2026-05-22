@@ -1,0 +1,21 @@
+{
+  "presetAmounts": [
+    10,
+    49,
+    100
+  ],
+  "recurringOptions": [
+    {
+      "value": "weekly",
+      "label": "Weekly"
+    },
+    {
+      "value": "monthly",
+      "label": "Monthly"
+    },
+    {
+      "value": "annually",
+      "label": "Annually"
+    }
+  ]
+}
