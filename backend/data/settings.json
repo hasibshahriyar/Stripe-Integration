@@ -6,6 +6,10 @@
   ],
   "recurringOptions": [
     {
+      "value": "one_time",
+      "label": "One time"
+    },
+    {
       "value": "weekly",
       "label": "Weekly"
     },
