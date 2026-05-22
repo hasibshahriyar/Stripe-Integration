@@ -520,8 +520,8 @@ function DonationPage() {
                       onChange={(e) => setForm((p) => ({ ...p, phoneCountry: e.target.value }))}
                       aria-label="Country code"
                     >
-                      <option value="+61">🇦🇺 +61</option>
-                      <option value="+64">🇳🇿 +64</option>
+                      <option value="+61">+61</option>
+                      <option value="+64">+64</option>
                     </select>
                     <input
                       id="donorPhone"
