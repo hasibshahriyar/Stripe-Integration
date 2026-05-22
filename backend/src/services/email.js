@@ -4,30 +4,34 @@ function formatCurrency(amount) {
 
 async function sendEmail({ to, toName, subject, html, text }) {
   const fromEmail = process.env.FROM_EMAIL || "shahriyarhasib6@gmail.com";
+  const auth = Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_SECRET_KEY}`).toString("base64");
 
-  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+  const res = await fetch("https://api.mailjet.com/v3.1/send", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+      "Authorization": `Basic ${auth}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      personalizations: [{ to: [{ email: to, name: toName }] }],
-      from: { email: fromEmail, name: "Princes Court Together" },
-      subject,
-      content: [{ type: "text/html", value: html }, { type: "text/plain", value: text }]
+      Messages: [{
+        From: { Email: fromEmail, Name: "Princes Court Together" },
+        To: [{ Email: to, Name: toName }],
+        Subject: subject,
+        HTMLPart: html,
+        TextPart: text
+      }]
     })
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`SendGrid error ${res.status}: ${err}`);
+    throw new Error(`Mailjet error ${res.status}: ${err}`);
   }
 }
 
 export async function sendDonationEmails({ donorName, donorEmail, amount, recurring, paymentIntentId, dedicationName }) {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.warn("[email] SENDGRID_API_KEY not set — skipping email notifications.");
+  if (!process.env.MAILJET_API_KEY || !process.env.MAILJET_SECRET_KEY) {
+    console.warn("[email] MAILJET_API_KEY or MAILJET_SECRET_KEY not set — skipping.");
     return;
   }
 
