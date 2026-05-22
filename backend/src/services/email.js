@@ -3,32 +3,24 @@ function formatCurrency(amount) {
 }
 
 async function sendEmail({ to, toName, subject, html, text }) {
-  const fromEmail = process.env.FROM_EMAIL || "shahriyarhasib6@gmail.com";
-  const res = await fetch("https://api.postmarkapp.com/email", {
+  const proxyUrl = "https://stripe-integration-three.vercel.app/api/send-email";
+  const res = await fetch(proxyUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Accept": "application/json",
-      "X-Postmark-Server-Token": process.env.POSTMARK_API_TOKEN,
+      "x-proxy-secret": process.env.EMAIL_PROXY_SECRET,
     },
-    body: JSON.stringify({
-      From: `Princes Court Together <${fromEmail}>`,
-      To: to,
-      Subject: subject,
-      HtmlBody: html,
-      TextBody: text,
-      MessageStream: "outbound",
-    }),
+    body: JSON.stringify({ to, toName, subject, html, text }),
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Postmark ${res.status}: ${body}`);
+    throw new Error(`Email proxy ${res.status}: ${body}`);
   }
 }
 
 export async function sendDonationEmails({ donorName, donorEmail, amount, recurring, paymentIntentId, dedicationName }) {
-  if (!process.env.POSTMARK_API_TOKEN) {
-    console.warn("[email] POSTMARK_API_TOKEN not set — skipping.");
+  if (!process.env.EMAIL_PROXY_SECRET) {
+    console.warn("[email] EMAIL_PROXY_SECRET not set — skipping.");
     return;
   }
 
